@@ -1,0 +1,128 @@
+<!--
+  Windows 11 guest for a ThinkPad T14s Gen 2a (Ryzen 7 PRO 5850U, 8C/16T, 14 GiB).
+  Stage 1: install/baseline VM with emulated virtio display (no passthrough yet).
+
+  CPU layout: host SMT siblings are (2n, 2n+1). The guest gets physical cores 5-7
+  (host CPUs 10-15) as 3 cores x 2 threads, so Windows sees real SMT pairs; QEMU's
+  emulator/IO threads sit on core 4 (CPUs 8-9); cores 0-3 stay with the host.
+-->
+<domain type='kvm'>
+  <name>win11</name>
+  <title>Windows 11 (T14s)</title>
+  <memory unit='GiB'>6</memory>
+  <currentMemory unit='GiB'>6</currentMemory>
+  <vcpu placement='static'>6</vcpu>
+  <cputune>
+    <vcpupin vcpu='0' cpuset='10'/>
+    <vcpupin vcpu='1' cpuset='11'/>
+    <vcpupin vcpu='2' cpuset='12'/>
+    <vcpupin vcpu='3' cpuset='13'/>
+    <vcpupin vcpu='4' cpuset='14'/>
+    <vcpupin vcpu='5' cpuset='15'/>
+    <emulatorpin cpuset='8-9'/>
+  </cputune>
+  <os firmware='efi'>
+    <type arch='x86_64' machine='q35'>hvm</type>
+    <firmware>
+      <feature enabled='yes' name='secure-boot'/>
+      <feature enabled='yes' name='enrolled-keys'/>
+    </firmware>
+  </os>
+  <features>
+    <acpi/>
+    <apic/>
+    <hyperv mode='custom'>
+      <relaxed state='on'/>
+      <vapic state='on'/>
+      <spinlocks state='on' retries='8191'/>
+      <vpindex state='on'/>
+      <runtime state='on'/>
+      <synic state='on'/>
+      <stimer state='on'/>
+      <reset state='on'/>
+      <vendor_id state='on' value='t14spassthru'/>
+      <frequencies state='on'/>
+      <tlbflush state='on'/>
+      <ipi state='on'/>
+    </hyperv>
+    <vmport state='off'/>
+    <smm state='on'/>
+  </features>
+  <cpu mode='host-passthrough' check='none' migratable='off'>
+    <topology sockets='1' dies='1' clusters='1' cores='3' threads='2'/>
+    <cache mode='passthrough'/>
+    <feature policy='require' name='topoext'/>
+  </cpu>
+  <clock offset='localtime'>
+    <timer name='rtc' tickpolicy='catchup'/>
+    <timer name='pit' tickpolicy='delay'/>
+    <timer name='hpet' present='no'/>
+    <timer name='hypervclock' present='yes'/>
+  </clock>
+  <on_poweroff>destroy</on_poweroff>
+  <on_reboot>restart</on_reboot>
+  <on_crash>destroy</on_crash>
+  <pm>
+    <suspend-to-mem enabled='no'/>
+    <suspend-to-disk enabled='no'/>
+  </pm>
+  <devices>
+    <emulator>/usr/bin/qemu-system-x86_64</emulator>
+
+    <disk type='volume' device='disk'>
+      <driver name='qemu' type='qcow2' cache='none' io='native' discard='unmap'/>
+      <source pool='default' volume='win11.qcow2'/>
+      <target dev='vda' bus='virtio'/>
+      <boot order='1'/>
+    </disk>
+    <disk type='volume' device='cdrom'>
+      <driver name='qemu' type='raw'/>
+      <source pool='default' volume='win11-install.iso'/>
+      <target dev='sda' bus='sata'/>
+      <readonly/>
+      <boot order='2'/>
+    </disk>
+    <disk type='volume' device='cdrom'>
+      <driver name='qemu' type='raw'/>
+      <source pool='default' volume='virtio-win.iso'/>
+      <target dev='sdb' bus='sata'/>
+      <readonly/>
+    </disk>
+
+    <controller type='usb' model='qemu-xhci' ports='15'/>
+    <controller type='sata' index='0'/>
+
+    <interface type='network'>
+      <source network='default'/>
+      <model type='virtio'/>
+    </interface>
+
+    <tpm model='tpm-crb'>
+      <backend type='emulator' version='2.0'/>
+    </tpm>
+
+    <graphics type='spice'>
+      <listen type='none'/>
+      <image compression='off'/>
+    </graphics>
+    <video>
+      <model type='virtio' heads='1' primary='yes'/>
+    </video>
+    <channel type='spicevmc'>
+      <target type='virtio' name='com.redhat.spice.0'/>
+    </channel>
+    <input type='tablet' bus='usb'/>
+    <input type='keyboard' bus='virtio'/>
+    <sound model='ich9'>
+      <audio id='1'/>
+    </sound>
+    <audio id='1' type='spice'/>
+    <redirdev bus='usb' type='spicevmc'/>
+    <redirdev bus='usb' type='spicevmc'/>
+
+    <rng model='virtio'>
+      <backend model='random'>/dev/urandom</backend>
+    </rng>
+    <memballoon model='none'/>
+  </devices>
+</domain>

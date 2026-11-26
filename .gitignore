@@ -1,0 +1,8 @@
+# Proprietary AMD/Lenovo firmware: regenerate locally, never commit (see README)
+rom/*
+!rom/.gitkeep
+
+# Firmware unpack scratch area, driver ISOs
+work/
+*.iso
+__pycache__/

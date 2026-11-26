@@ -25,7 +25,8 @@
     <type arch='x86_64' machine='q35'>hvm</type>
     <firmware>
       <feature enabled='yes' name='secure-boot'/>
-      <feature enabled='yes' name='enrolled-keys'/>
+      <!-- Arch's edk2-ovmf ships no pre-enrolled MS-key VARS; Win11 only needs Secure Boot *capable* firmware -->
+      <feature enabled='no' name='enrolled-keys'/>
     </firmware>
   </os>
   <features>

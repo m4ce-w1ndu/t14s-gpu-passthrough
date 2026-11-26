@@ -44,7 +44,7 @@ In BIOS 1.39 (R1NET69W) the driver is named `AMDGenericGop` and reports "AMD GOP
 The guest gets **6 vCPUs (3 cores × 2 threads)** pinned to host cores 5–7 (CPUs 10–15). QEMU's emulator threads
 run on core 4, and cores 0–3 are left for the host. CPU mode is `host-passthrough` with `topoext` and Hyper-V
 enlightenments. The VM has 6 GiB RAM, a 128 GiB thin-provisioned qcow2 disk on virtio, a virtio NIC, TPM 2.0
-(swtpm), and OVMF with Secure Boot.
+(swtpm), and Secure Boot–capable OVMF. Arch ships no Microsoft keys, so the VM runs with keys not enrolled.
 
 ```sh
 ./host-setup.sh                 # then log out and back in

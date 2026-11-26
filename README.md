@@ -22,7 +22,14 @@ A Windows 11 KVM/libvirt VM on a **Lenovo ThinkPad T14s Gen 2a** (Ryzen 7 PRO 58
 | `tools/atom_info.py` | Lists the VBIOS data tables and display paths (connectors) |
 | `docs/edp.md` | Investigation and plan for driving the built-in panel from the guest |
 | `tools/efirom.py` | Wraps an EFI driver into a PCI option ROM, like edk2's `EfiRom` |
-| `vm/win11.xml` | libvirt domain definition |
+| `vm/win11.xml` | libvirt domain, emulated display (install / fallback) |
+| `vm/win11-gpu.xml` | Same domain (same UUID, TPM and NVRAM) with iGPU passthrough, 12 pinned vCPUs, evdev keyboard and pointer |
+| `vm-mode.sh` | Switches `win11` between the two configs |
+| `install.sh` | Installs the hand-over script, libvirt hook, ROMs, a narrow sudoers rule, and user lingering |
+| `scripts/gpu-handover.sh` | Moves the iGPU between amdgpu and vfio-pci (`to-vfio`, `to-host`, `roundtrip`, `status`) |
+| `hooks/qemu.d/t14s-gpu` | libvirt hook: hands the GPU over before start and returns it after stop |
+| `guest/setup-gpu-tasks.ps1` | Windows side: Fast Startup off, disables the GPU on shutdown and re-enables it at boot |
+| `docs/reset.md` | Reset-bug strategy and test plan |
 
 ## ROM files are not in this repo
 

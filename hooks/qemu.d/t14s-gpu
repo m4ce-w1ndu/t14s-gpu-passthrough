@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+# libvirt QEMU hook: hand the iGPU to vfio-pci before a domain that passes 05:00.0 starts,
+# and give it back to the host after that domain is gone.
+# Installed as /etc/libvirt/hooks/qemu.d/t14s-gpu. Args: <domain> <operation> <sub-op>; domain XML on stdin.
+DOMAIN=$1 OP=$2 SUB=$3
+HANDOVER=/usr/local/libexec/t14s-gpu-handover
+
+xml=$(cat)
+grep -q "<hostdev" <<<"$xml" && grep -qE "bus=.0x05. slot=.0x00. function=.0x0." <<<"$xml" || exit 0
+
+case "$OP/$SUB" in
+    prepare/begin)
+        # Synchronous: a non-zero exit aborts the VM start.
+        "$HANDOVER" to-vfio
+        ;;
+    release/end)
+        # Run outside libvirtd (it restarts the display manager, which must not block libvirt).
+        systemd-run --no-block --collect --unit="t14s-gpu-to-host-$(date +%s)" "$HANDOVER" to-host
+        ;;
+esac
+exit 0

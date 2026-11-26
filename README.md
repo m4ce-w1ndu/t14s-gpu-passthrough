@@ -19,6 +19,8 @@ A Windows 11 KVM/libvirt VM on a **Lenovo ThinkPad T14s Gen 2a** (Ryzen 7 PRO 58
 | `dump-vbios.sh` | Dumps the iGPU VBIOS from the ACPI VFCT table into `rom/` |
 | `tools/vfct_dump.py` | VFCT table parser (Python standard library only) |
 | `tools/extract_gop.py` | Pulls a DXE driver by name out of a UEFI firmware image (FV/FFS/LZMA walker, standard library only) |
+| `tools/atom_info.py` | Lists the VBIOS data tables and display paths (connectors) |
+| `docs/edp.md` | Investigation and plan for driving the built-in panel from the guest |
 | `tools/efirom.py` | Wraps an EFI driver into a PCI option ROM, like edk2's `EfiRom` |
 | `vm/win11.xml` | libvirt domain definition |
 

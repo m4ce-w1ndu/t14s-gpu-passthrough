@@ -55,3 +55,10 @@ If anything freezes, hold the power button. After the reboot, the log file shows
 - Restarting the Windows graphics driver (Win+Ctrl+Shift+B) left the GPU in `CM_PROB_FAILED_ADD`.
 - After a clean guest shutdown, the hook re-bound amdgpu. The host **hard-froze during "probing amdgpu"**. The forced power-off corrupted the root file system, which needed fsck from a live USB.
 - Changes made: the hook now does a **clean reboot** after the VM by default (returning the GPU to the host is opt-in through `/etc/t14s-gpu/return-to-host`), and the temporary sudo rules are revoked at every boot.
+
+**Test B, second attempt: panel WORKS, then the GPU dies about 20 s after boot.**
+- With no driver restart in the guest, the built-in panel lit up (backlight first, then the Windows login screen). Windows reports the panel as internal (`tech=0x80000000`) with a 101-level brightness interface. There is no TianoCore/boot logo: the GOP doesn't drive eDP, so the first image comes from the Windows AMD driver.
+- Both sessions crash the same way (`C:\Windows\LiveKernelReports\WATCHDOG`): `0x141` VIDEO_ENGINE_TIMEOUT at about +20 s and about +50 s, then `0x1B0` (TDR recovery failed, `C0000001`), and the device ends in code 31. TDR recovery needs a GPU reset, which this iGPU can't do inside the VM.
+- Host side: interrupts reach the guest (MSI-X vector 0), and there are no AMD-Vi/IOMMU faults. The interrupt count freezes once the device dies.
+- Next: `TdrDelay=60`/`TdrDdiDelay=60` set in the guest, to tell a slow engine apart from a hung one.
+- Touchpad (I2C HID, absolute multitouch) does not work over evdev into virtio mouse/keyboard. Keyboard and TrackPoint work.

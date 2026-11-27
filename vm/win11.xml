@@ -2,9 +2,10 @@
   Windows 11 guest for a ThinkPad T14s Gen 2a (Ryzen 7 PRO 5850U, 8C/16T, 14 GiB).
   Stage 1: install/baseline VM with emulated virtio display (no passthrough yet).
 
-  CPU layout: host SMT siblings are (2n, 2n+1). The guest gets physical cores 5-7
-  (host CPUs 10-15) as 3 cores x 2 threads, so Windows sees real SMT pairs; QEMU's
-  emulator/IO threads sit on core 4 (CPUs 8-9); cores 0-3 stay with the host.
+  CPU layout: host SMT siblings are (2n, 2n+1). The guest gets physical cores 4-7
+  (host CPUs 8-15) as 4 cores x 2 threads, so Windows sees real SMT pairs; QEMU's
+  emulator/IO threads sit on core 3 (CPUs 6-7); cores 0-2 stay with the host desktop.
+  Without a real GPU, Windows renders on the CPU (WARP), so the extra cores help the display too.
 -->
 <domain type='kvm'>
   <name>win11</name>
@@ -12,15 +13,17 @@
   <title>Windows 11 (T14s)</title>
   <memory unit='GiB'>6</memory>
   <currentMemory unit='GiB'>6</currentMemory>
-  <vcpu placement='static'>6</vcpu>
+  <vcpu placement='static'>8</vcpu>
   <cputune>
-    <vcpupin vcpu='0' cpuset='10'/>
-    <vcpupin vcpu='1' cpuset='11'/>
-    <vcpupin vcpu='2' cpuset='12'/>
-    <vcpupin vcpu='3' cpuset='13'/>
-    <vcpupin vcpu='4' cpuset='14'/>
-    <vcpupin vcpu='5' cpuset='15'/>
-    <emulatorpin cpuset='8-9'/>
+    <vcpupin vcpu='0' cpuset='8'/>
+    <vcpupin vcpu='1' cpuset='9'/>
+    <vcpupin vcpu='2' cpuset='10'/>
+    <vcpupin vcpu='3' cpuset='11'/>
+    <vcpupin vcpu='4' cpuset='12'/>
+    <vcpupin vcpu='5' cpuset='13'/>
+    <vcpupin vcpu='6' cpuset='14'/>
+    <vcpupin vcpu='7' cpuset='15'/>
+    <emulatorpin cpuset='6-7'/>
   </cputune>
   <os firmware='efi'>
     <type arch='x86_64' machine='q35'>hvm</type>
@@ -51,7 +54,7 @@
     <smm state='on'/>
   </features>
   <cpu mode='host-passthrough' check='none' migratable='off'>
-    <topology sockets='1' dies='1' clusters='1' cores='3' threads='2'/>
+    <topology sockets='1' dies='1' clusters='1' cores='4' threads='2'/>
     <cache mode='passthrough'/>
     <feature policy='require' name='topoext'/>
   </cpu>
@@ -106,6 +109,7 @@
     <graphics type='spice'>
       <listen type='none'/>
       <image compression='off'/>
+      <streaming mode='off'/>
     </graphics>
     <video>
       <model type='virtio' heads='1' primary='yes'/>

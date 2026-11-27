@@ -24,6 +24,8 @@ A Windows 11 KVM/libvirt VM on a **Lenovo ThinkPad T14s Gen 2a** (Ryzen 7 PRO 58
 | `tools/efirom.py` | Wraps an EFI driver into a PCI option ROM, like edk2's `EfiRom` |
 | `vm/win11.xml` | libvirt domain, emulated display (install / fallback) |
 | `vm/win11-gpu.xml` | Same domain (same UUID, TPM and NVRAM) with iGPU passthrough, 12 pinned vCPUs, evdev keyboard and pointer |
+| `win11-rdp.sh` | Opens the emulated VM over RDP (FreeRDP, H.264/AVC444, dynamic resolution, audio, clipboard). Much smoother than the SPICE console |
+| `CLAUDE.md` | Safety rules and workflow for Claude Code sessions in this repo |
 | `vm-mode.sh` | Switches `win11` between the two configs |
 | `install.sh` | Installs the hand-over script, libvirt hook, ROMs, ufw rules for libvirt NAT, and user lingering |
 | `claude-session.sh` | `grant [hours]` / `revoke` / `status`: temporary passwordless sudo for a fixed command list during hands-off testing, removed automatically after N hours |
@@ -52,8 +54,8 @@ In BIOS 1.39 (R1NET69W) the driver is named `AMDGenericGop` and reports "AMD GOP
 
 ## VM
 
-The guest gets **6 vCPUs (3 cores × 2 threads)** pinned to host cores 5–7 (CPUs 10–15). QEMU's emulator threads
-run on core 4, and cores 0–3 are left for the host. CPU mode is `host-passthrough` with `topoext` and Hyper-V
+Emulated mode: **8 vCPUs (4 cores × 2 threads)** pinned to host cores 4–7 (CPUs 8–15). QEMU's emulator threads
+run on core 3, and cores 0–2 are left for the host desktop. Passthrough mode uses 12 vCPUs (cores 2–7). CPU mode is `host-passthrough` with `topoext` and Hyper-V
 enlightenments. The VM has 6 GiB RAM, a 128 GiB thin-provisioned qcow2 disk on virtio, a virtio NIC, TPM 2.0
 (swtpm), and Secure Boot–capable OVMF. Arch ships no Microsoft keys, so the VM runs with keys not enrolled.
 

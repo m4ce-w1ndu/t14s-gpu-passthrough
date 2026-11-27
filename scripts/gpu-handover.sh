@@ -141,7 +141,12 @@ to_vfio() {
     [[ -n $(gpu_users) ]] && log "still open by system processes: $(describe $(gpu_users))(continuing; DRM handles open fds on unbind)"
 
     vtcon_unbind
-    modprobe vfio-pci || die "modprobe vfio-pci failed"
+    # Keep both functions out of D3cold, and stop vfio-pci from putting the idle device into D3:
+    # an APU iGPU coming back from D3 is a known trigger for hangs when it is reclaimed.
+    echo 0 > "$DEV/$GPU/d3cold_allowed"; echo 0 > "$DEV/$AUD/d3cold_allowed"
+    modprobe vfio-pci disable_idle_d3=1 || die "modprobe vfio-pci failed"
+    echo Y > /sys/module/vfio_pci/parameters/disable_idle_d3 2>/dev/null || true
+    log "d3cold disabled, vfio-pci disable_idle_d3=$(cat /sys/module/vfio_pci/parameters/disable_idle_d3 2>/dev/null)"
     [[ $(drv $AUD) == snd_hda_intel ]] && stop_audio_users
     unbind $AUD
     log "releasing GPU from amdgpu (if the system freezes here, amdgpu teardown hung)"
@@ -162,7 +167,13 @@ to_host() {
     log "=== to-host: gpu=$(drv $GPU) audio=$(drv $AUD)"
     [[ $(drv $GPU) == vfio-pci ]] && unbind $GPU
     [[ $(drv $AUD) == vfio-pci ]] && unbind $AUD
+    echo 0 > "$DEV/$GPU/d3cold_allowed"; echo 0 > "$DEV/$AUD/d3cold_allowed"
+    sleep 2
     local since; since=$(date '+%F %T')
+    # Re-binding amdgpu after a guest is the step that hard-froze the host once. Make sure the
+    # journal and all file systems are on disk first, so a freeze can't corrupt anything.
+    log "power state before probe: gpu=$(cat $DEV/$GPU/power_state 2>/dev/null) audio=$(cat $DEV/$AUD/power_state 2>/dev/null)"
+    journalctl --sync 2>/dev/null; sync
     log "probing amdgpu"
     probe_as $GPU ""
     probe_as $AUD ""

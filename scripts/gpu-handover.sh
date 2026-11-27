@@ -48,6 +48,34 @@ user_gpu_users() {
     echo "${out[*]}"
 }
 
+AUDIO_UNITS="pipewire.socket pipewire-pulse.socket pipewire.service pipewire-pulse.service wireplumber.service"
+
+# Unbinding snd_hda_intel blocks (uninterruptibly) until every open fd on the card is closed, and
+# PipeWire/WirePlumber run in the per-user manager, outside the graphical session. Stop them first.
+stop_audio_users() {
+    local unit uid user
+    for unit in $(systemctl list-units --plain --no-legend --state=active 'user@*.service' | awk '{print $1}'); do
+        uid=${unit#user@}; uid=${uid%.service}
+        user=$(id -nu "$uid" 2>/dev/null) || continue
+        if systemctl --user -M "$user@" is-active -q pipewire.service pipewire.socket 2>/dev/null; then
+            log "stopping PipeWire/WirePlumber for $user"
+            timeout 20 systemctl --user -M "$user@" stop $AUDIO_UNITS 2>/dev/null
+            grep -qx "$user" /run/t14s-gpu-audio-users 2>/dev/null || echo "$user" >> /run/t14s-gpu-audio-users
+        fi
+    done
+    return 0
+}
+
+start_audio_users() {
+    [[ -f /run/t14s-gpu-audio-users ]] || return 0
+    local user
+    while read -r user; do
+        log "starting PipeWire/WirePlumber for $user"
+        systemctl --user -M "$user@" start pipewire.socket pipewire-pulse.socket wireplumber.service 2>/dev/null || true
+    done < /run/t14s-gpu-audio-users
+    rm -f /run/t14s-gpu-audio-users
+}
+
 describe() { local p; for p in "$@"; do printf '%s(%s) ' "$p" "$(ps -o comm= -p "$p" 2>/dev/null)"; done; }
 
 stop_graphical_sessions() {
@@ -114,6 +142,7 @@ to_vfio() {
 
     vtcon_unbind
     modprobe vfio-pci || die "modprobe vfio-pci failed"
+    [[ $(drv $AUD) == snd_hda_intel ]] && stop_audio_users
     unbind $AUD
     log "releasing GPU from amdgpu (if the system freezes here, amdgpu teardown hung)"
     unbind $GPU
@@ -159,6 +188,7 @@ to_host() {
     fi
 
     vtcon_rebind
+    start_audio_users
     if [[ -f /run/t14s-gpu-dm-was-active ]]; then
         rm -f /run/t14s-gpu-dm-was-active
         log "starting display-manager"

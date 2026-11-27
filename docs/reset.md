@@ -41,3 +41,11 @@ kills everything in the graphical session. `install.sh` enables lingering as an 
 
 Logs: `/var/log/t14s-gpu-handover.log`, `journalctl -t t14s-gpu`, and `C:\ProgramData\t14s-gpu\gpu.log` in the guest.
 If anything freezes, hold the power button. After the reboot, the log file shows the last step that ran.
+
+## Results
+
+**Test A, host round trip: PASS** (2026-11-27, kernel 7.3.6, BIOS 1.37).
+- Unbinding amdgpu performs a **MODE2 reset** by itself (`amdgpu: finishing device. MODE2 reset`), so vfio-pci receives a freshly reset GPU.
+- Rebinding amdgpu re-initialises cleanly: SMU, DCN 2.1 and DMUB come up, and every ring initialises with no errors. eDP shows as connected.
+- Gotcha found and fixed: unbinding the HDMI audio (`snd_hda_intel`) blocks in uninterruptible sleep until PipeWire/WirePlumber close the card. They live in the user's systemd manager, so the script now stops them first and restarts them afterwards.
+- Side effect: the backlight comes back at 100%.

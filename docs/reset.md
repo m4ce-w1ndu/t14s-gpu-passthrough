@@ -68,3 +68,5 @@ If anything freezes, hold the power button. After the reboot, the log file shows
 - Windows renders the lock screen to the internal panel (`LogonUI`/`dwm` running, panel active, brightness 75) but the panel shows black with the backlight on. Suspected cause: Panel Self-Refresh. The driver's own key `…\Class\{4d36e968…}\0001` has `DalPSRFeatureEnable=1`; it is now set to 0.
 
 **Test C, restart inside Windows: FAIL.** The VM hangs in OVMF during POST (one vCPU spinning at `0x7b1…`, the rest halted), and Windows never starts. With no GPU reset between guest boots, the firmware meets a dirty GPU. Prime suspect: the AMD GOP option ROM, which also never lit the panel. Next run: no GOP ROM.
+
+**Test B, fourth attempt (no GOP option ROM): FAIL, Code 43.** Without the GOP, the Windows driver can't start the GPU (`CM_PROB_FAILED_POST_START`, problem code 0x2B = 43), there are no interrupts, and the backlight stays off. **The GOP's pre-OS initialisation is required** even though it shows nothing on eDP. The GOP ROM is restored.

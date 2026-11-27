@@ -49,3 +49,9 @@ If anything freezes, hold the power button. After the reboot, the log file shows
 - Rebinding amdgpu re-initialises cleanly: SMU, DCN 2.1 and DMUB come up, and every ring initialises with no errors. eDP shows as connected.
 - Gotcha found and fixed: unbinding the HDMI audio (`snd_hda_intel`) blocks in uninterruptible sleep until PipeWire/WirePlumber close the card. They live in the user's systemd manager, so the script now stops them first and restarts them afterwards.
 - Side effect: the backlight comes back at 100%.
+
+**Test B, first passthrough boot: PARTIAL, then host crash.**
+- Hand-over to vfio-pci worked. Windows booted and loaded the AMD driver (31.0.21921.11005). It saw the built-in panel by its EDID (`LEB14203N-WJ`), but the **panel stayed black with no backlight**, and no TianoCore logo was shown.
+- Restarting the Windows graphics driver (Win+Ctrl+Shift+B) left the GPU in `CM_PROB_FAILED_ADD`.
+- After a clean guest shutdown, the hook re-bound amdgpu. The host **hard-froze during "probing amdgpu"**. The forced power-off corrupted the root file system, which needed fsck from a live USB.
+- Changes made: the hook now does a **clean reboot** after the VM by default (returning the GPU to the host is opt-in through `/etc/t14s-gpu/return-to-host`), and the temporary sudo rules are revoked at every boot.

@@ -14,6 +14,7 @@ DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 RULES=/etc/sudoers.d/t14s-claude-session
 REVOKE=/usr/local/libexec/t14s-claude-revoke
 TIMER=t14s-claude-revoke
+BOOT_UNIT=t14s-claude-revoke-at-boot.service
 
 grant() {
     local hours=${1:-8}
@@ -27,9 +28,28 @@ grant() {
 #!/bin/sh
 rm -f $RULES
 systemctl stop $TIMER.timer 2>/dev/null
+systemctl disable $BOOT_UNIT 2>/dev/null
 logger -t t14s-gpu "claude session sudo rules revoked"
 echo "sudo rules revoked"
 EOF
+
+    # A session never survives a reboot (clean or crash): revoke early on the next boot.
+    install -m 644 -o root -g root /dev/stdin "/etc/systemd/system/$BOOT_UNIT" <<EOF
+[Unit]
+Description=Revoke t14s-gpu-passthrough temporary sudo rules at boot
+DefaultDependencies=no
+After=local-fs.target
+Before=sysinit.target
+
+[Service]
+Type=oneshot
+ExecStart=$REVOKE
+
+[Install]
+WantedBy=sysinit.target
+EOF
+    systemctl daemon-reload
+    systemctl enable -q "$BOOT_UNIT"
 
     local tmp; tmp=$(mktemp)
     cat > "$tmp" <<EOF

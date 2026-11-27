@@ -1,9 +1,16 @@
 #!/usr/bin/env bash
 # libvirt QEMU hook: hand the iGPU to vfio-pci before a domain that passes 05:00.0 starts,
-# and give it back to the host after that domain is gone.
+# and deal with it after that domain is gone.
 # Installed as /etc/libvirt/hooks/qemu.d/t14s-gpu. Args: <domain> <operation> <sub-op>; domain XML on stdin.
+#
+# After the VM: by default the host does a CLEAN REBOOT. Re-binding amdgpu to a GPU that the guest
+# left in a bad state hard-froze the host (2026-11-27, during "probing amdgpu"), and the forced power-off
+# that followed corrupted the root file system. A clean reboot syncs and unmounts first.
+# To try returning the GPU to amdgpu instead (only after a clean guest shutdown):
+#   touch /etc/t14s-gpu/return-to-host
 DOMAIN=$1 OP=$2 SUB=$3
 HANDOVER=/usr/local/libexec/t14s-gpu-handover
+OPT_IN=/etc/t14s-gpu/return-to-host
 
 xml=$(cat)
 grep -q "<hostdev" <<<"$xml" && grep -qE "bus=.0x05. slot=.0x00. function=.0x0." <<<"$xml" || exit 0
@@ -14,8 +21,16 @@ case "$OP/$SUB" in
         "$HANDOVER" to-vfio
         ;;
     release/end)
-        # Run outside libvirtd (it restarts the display manager, which must not block libvirt).
-        systemd-run --no-block --collect --unit="t14s-gpu-to-host-$(date +%s)" "$HANDOVER" to-host
+        # Run outside libvirtd so the hook returns immediately.
+        if [[ -e $OPT_IN ]]; then
+            logger -t t14s-gpu "VM $DOMAIN ended: returning GPU to host ($OPT_IN present)"
+            systemd-run --no-block --collect --unit="t14s-gpu-to-host-$(date +%s)" "$HANDOVER" to-host
+        else
+            logger -t t14s-gpu "VM $DOMAIN ended: clean reboot (GPU is not re-bound to amdgpu)"
+            echo "[$(date '+%F %T')] VM $DOMAIN ended -> clean reboot" >> /var/log/t14s-gpu-handover.log
+            sync
+            systemd-run --no-block --collect --unit="t14s-gpu-reboot-$(date +%s)" --on-active=5 /usr/bin/systemctl reboot
+        fi
         ;;
 esac
 exit 0

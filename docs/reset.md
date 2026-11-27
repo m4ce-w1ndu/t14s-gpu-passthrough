@@ -30,7 +30,7 @@
 ## Test plan
 
 Run Claude Code (or your shell) in tmux started from a **TTY login**, not from Konsole. Stopping the desktop
-kills everything in the graphical session. `install.sh` enables lingering as an extra safety net.
+kills everything in the graphical session. `install.sh` enables lingering as an extra safety net. For a hands-off session, `./claude-session.sh grant 4` gives temporary passwordless sudo for the hand-over commands only; `./claude-session.sh revoke` ends it, and it expires on its own.
 
 | Test | Command | Pass if |
 |---|---|---|

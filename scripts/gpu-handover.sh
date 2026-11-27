@@ -38,7 +38,31 @@ probe_as() {   # probe_as <dev> <driver|"">   ("" = default kernel match)
     echo "$1" > /sys/bus/pci/drivers_probe 2>/dev/null || true
 }
 
-gpu_users() { fuser /dev/dri/by-path/pci-$GPU-card /dev/dri/by-path/pci-$GPU-render 2>/dev/null | xargs; }
+gpu_users() { fuser /dev/dri/by-path/pci-$GPU-card /dev/dri/by-path/pci-$GPU-render 2>/dev/null | xargs -n1 | sort -un | xargs; }
+
+# Only user processes may be signalled. PID 1 and systemd-logind keep the session's DRM fds in their
+# fd store; SIGTERM to PID 1 would make systemd re-execute. They let go once the session has ended.
+user_gpu_users() {
+    local p out=()
+    for p in $(gpu_users); do grep -qs '/user.slice/' "/proc/$p/cgroup" && out+=("$p"); done
+    echo "${out[*]}"
+}
+
+describe() { local p; for p in "$@"; do printf '%s(%s) ' "$p" "$(ps -o comm= -p "$p" 2>/dev/null)"; done; }
+
+stop_graphical_sessions() {
+    # Plasma runs inside the per-user systemd manager (kept alive by lingering), not only in the login
+    # session, so stop each user's graphical session explicitly.
+    local unit uid user
+    for unit in $(systemctl list-units --plain --no-legend --state=active 'user@*.service' | awk '{print $1}'); do
+        uid=${unit#user@}; uid=${uid%.service}
+        user=$(id -nu "$uid" 2>/dev/null) || continue
+        if systemctl --user -M "$user@" is-active -q graphical-session.target 2>/dev/null; then
+            log "stopping graphical-session.target for $user"
+            timeout 30 systemctl --user -M "$user@" stop graphical-session.target || log "graphical-session.target stop for $user timed out"
+        fi
+    done
+}
 
 disable_bus_reset() {
     # The only reset this GPU offers is a secondary bus reset of 00:08.1, which would also hit the
@@ -71,14 +95,22 @@ to_vfio() {
         touch /run/t14s-gpu-dm-was-active
     fi
 
-    # Anything still holding the GPU (apps left in the user manager, etc.) has to go.
-    for i in $(seq 1 15); do [[ -z $(gpu_users) ]] && break; sleep 1; done
-    if [[ -n $(gpu_users) ]]; then
-        log "GPU still in use by: $(gpu_users) -> SIGTERM"
-        fuser -k -TERM /dev/dri/by-path/pci-$GPU-card /dev/dri/by-path/pci-$GPU-render 2>/dev/null
-        sleep 5
-        [[ -n $(gpu_users) ]] && { log "-> SIGKILL $(gpu_users)"; fuser -k -KILL /dev/dri/by-path/pci-$GPU-card /dev/dri/by-path/pci-$GPU-render 2>/dev/null; sleep 2; }
+    stop_graphical_sessions
+
+    # Anything in user.slice still holding the GPU (apps left in the user manager) has to go.
+    local users
+    for i in $(seq 1 15); do [[ -z $(user_gpu_users) ]] && break; sleep 1; done
+    users=$(user_gpu_users)
+    if [[ -n $users ]]; then
+        log "GPU still in use by: $(describe $users)-> SIGTERM"
+        kill -TERM $users 2>/dev/null
+        for i in $(seq 1 10); do [[ -z $(user_gpu_users) ]] && break; sleep 1; done
+        users=$(user_gpu_users)
+        [[ -n $users ]] && { log "-> SIGKILL $(describe $users)"; kill -KILL $users 2>/dev/null; sleep 2; }
     fi
+    # System holders (PID 1 / logind fd store) should drop their copies now the session is gone
+    for i in $(seq 1 10); do [[ -z $(gpu_users) ]] && break; sleep 1; done
+    [[ -n $(gpu_users) ]] && log "still open by system processes: $(describe $(gpu_users))(continuing; DRM handles open fds on unbind)"
 
     vtcon_unbind
     modprobe vfio-pci || die "modprobe vfio-pci failed"

@@ -27,6 +27,7 @@ A Windows 11 KVM/libvirt VM on a **Lenovo ThinkPad T14s Gen 2a** (Ryzen 7 PRO 58
 | `vm-mode.sh` | Switches `win11` between the two configs |
 | `install.sh` | Installs the hand-over script, libvirt hook, ROMs, ufw rules for libvirt NAT, and user lingering |
 | `claude-session.sh` | `grant [hours]` / `revoke` / `status`: temporary passwordless sudo for a fixed command list during hands-off testing, removed automatically after N hours |
+| `scripts/ufw-libvirt.sh` | `apply` / `remove` / `status`: ufw rules for libvirt's NAT network (DHCP, DNS, forwarding on virbr0 only) |
 | `scripts/gpu-handover.sh` | Moves the iGPU between amdgpu and vfio-pci (`to-vfio`, `to-host`, `roundtrip`, `status`) |
 | `hooks/qemu.d/t14s-gpu` | libvirt hook: hands the GPU over before start and returns it after stop |
 | `guest/setup-gpu-tasks.ps1` | Windows side: Fast Startup off, disables the GPU on shutdown and re-enables it at boot |

@@ -24,11 +24,8 @@ install -d -m 755 /var/lib/libvirt/vbios
 install -m 644 -o root -g root "$DIR/rom/vbios_1002_1638.bin" "$DIR/rom/AMDGopDriver.rom" /var/lib/libvirt/vbios/
 
 if command -v ufw >/dev/null && systemctl is-active -q ufw; then
-    echo "==> ufw: DHCP/DNS to libvirt's dnsmasq and NAT forwarding on virbr0"
-    ufw allow in on virbr0 to any port 67 proto udp comment 'libvirt DHCP'
-    ufw allow in on virbr0 to any port 53 comment 'libvirt DNS'
-    ufw route allow in on virbr0 comment 'libvirt NAT out'
-    ufw route allow out on virbr0 comment 'libvirt NAT return'
+    echo "==> ufw: libvirt NAT rules on virbr0"
+    "$DIR/scripts/ufw-libvirt.sh" apply
 fi
 
 rm -f /etc/sudoers.d/t14s-gpu   # permanent rule from earlier versions

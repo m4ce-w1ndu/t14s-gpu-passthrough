@@ -26,11 +26,8 @@ virsh -c qemu:///system net-autostart default
 virsh -c qemu:///system net-start default 2>/dev/null || true
 
 if command -v ufw >/dev/null && systemctl is-active -q ufw; then
-    echo "==> ufw: allow DHCP/DNS to libvirt's dnsmasq and NAT forwarding on virbr0"
-    ufw allow in on virbr0 to any port 67 proto udp comment 'libvirt DHCP'
-    ufw allow in on virbr0 to any port 53 comment 'libvirt DNS'
-    ufw route allow in on virbr0 comment 'libvirt NAT out'
-    ufw route allow out on virbr0 comment 'libvirt NAT return'
+    echo "==> ufw: libvirt NAT rules on virbr0"
+    "$DIR/scripts/ufw-libvirt.sh" apply
 fi
 
 echo "==> Fish: default to the system session"

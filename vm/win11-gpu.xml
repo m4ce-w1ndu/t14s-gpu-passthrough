@@ -113,12 +113,14 @@
       <rom file='/var/lib/libvirt/vbios/vbios_1002_1638.bin'/>
       <address type='pci' domain='0x0000' bus='0x06' slot='0x00' function='0x0' multifunction='on'/>
     </hostdev>
-    <!-- iGPU HDMI/DP audio, carrying the AMD GOP driver as its option ROM -->
+    <!-- iGPU HDMI/DP audio. No AMD GOP option ROM: it never lit the eDP panel, and on a guest
+         restart (GPU not reset) OVMF hung while running it. To re-enable it, put back:
+         <rom file='/var/lib/libvirt/vbios/AMDGopDriver.rom'/> -->
     <hostdev mode='subsystem' type='pci' managed='no'>
       <source>
         <address domain='0x0000' bus='0x05' slot='0x00' function='0x1'/>
       </source>
-      <rom file='/var/lib/libvirt/vbios/AMDGopDriver.rom'/>
+      <rom bar='off'/>
       <address type='pci' domain='0x0000' bus='0x06' slot='0x00' function='0x1'/>
     </hostdev>
     <video>

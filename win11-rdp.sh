@@ -6,8 +6,8 @@
 #   ./win11-rdp.sh -f         fullscreen (toggle with Ctrl+Alt+Enter)
 #   RDP_USER=you@example.com ./win11-rdp.sh   skip the username prompt
 #
-# Needs: freerdp (sudo pacman -S freerdp). Sign in with the Microsoft account e-mail + password
-# (not the Windows Hello PIN).
+# Needs: freerdp (sudo pacman -S freerdp). Sign in with a local Windows account (e.g. RDP_USER=Admin);
+# set or reset its password from the host with tools/set-guest-password.sh.
 set -euo pipefail
 export LIBVIRT_DEFAULT_URI=qemu:///system
 DOM=win11

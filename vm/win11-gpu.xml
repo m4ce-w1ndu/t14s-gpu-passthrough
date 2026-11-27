@@ -138,6 +138,12 @@
     <input type='mouse' bus='virtio'/>
     <input type='keyboard' bus='virtio'/>
 
+    <!-- QEMU guest agent: lets the host query/run commands in Windows without a display -->
+    <controller type='virtio-serial' index='0'/>
+    <channel type='unix'>
+      <target type='virtio' name='org.qemu.guest_agent.0'/>
+    </channel>
+
     <rng model='virtio'>
       <backend model='random'>/dev/urandom</backend>
     </rng>

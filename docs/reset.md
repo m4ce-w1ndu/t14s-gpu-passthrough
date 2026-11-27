@@ -70,3 +70,23 @@ If anything freezes, hold the power button. After the reboot, the log file shows
 **Test C, restart inside Windows: FAIL.** The VM hangs in OVMF during POST (one vCPU spinning at `0x7b1…`, the rest halted), and Windows never starts. With no GPU reset between guest boots, the firmware meets a dirty GPU. Prime suspect: the AMD GOP option ROM, which also never lit the panel. Next run: no GOP ROM.
 
 **Test B, fourth attempt (no GOP option ROM): FAIL, Code 43.** Without the GOP, the Windows driver can't start the GPU (`CM_PROB_FAILED_POST_START`, problem code 0x2B = 43), there are no interrupts, and the backlight stays off. **The GOP's pre-OS initialisation is required** even though it shows nothing on eDP. The GOP ROM is restored.
+
+**Test B, fifth attempt (GOP back, PSR off, TdrDelay=60): black panel, backlight on.**
+- GPU status OK, one recovered `0x141` engine timeout within about 90 s, then idle-level interrupts.
+- `WmiSetBrightness` is accepted and reads back the new value, but **the backlight does not change**. Windows believes it drives the internal panel, but neither its picture nor its brightness reaches the hardware. The backlight that is on was most likely enabled by the GOP before the OS started.
+- Hypothesis (unconfirmed): the display microcontroller (DMCUB) is not working in the guest. It handles backlight, PSR and eDP power on DCN 2.1, and its firmware is loaded through the PSP, which host and guest share. That would explain the missing brightness control, the black eDP output and the interrupt storm at startup. The host also logs `DMCUB error` for this panel.
+
+## Status (2026-11-27)
+
+| | |
+|---|---|
+| Hand-over from a running desktop, fresh VM start | works |
+| Windows driver + GPU stable with TdrDelay=60 | works (one recovered engine reset) |
+| Picture on the internal eDP panel | appeared once in 5 attempts; brightness control has no effect |
+| Restarting Windows inside the VM | hangs in OVMF → `on_reboot=destroy` (host reboots instead) |
+| Returning the GPU to the host after a guest | froze the host once → clean reboot by default |
+
+Next steps when resuming:
+1. Test with an external monitor (HDMI/USB-C) to separate "GPU output works" from "eDP path broken".
+2. Get OVMF debug output (isa-debugcon) to see what the GOP does and doesn't do on eDP.
+3. Option 2: port the PSP-ring-destroy + MODE2 UEFI reset to Cezanne. It would fix guest restarts and maybe the DMCUB state.

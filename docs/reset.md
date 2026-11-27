@@ -62,3 +62,9 @@ If anything freezes, hold the power button. After the reboot, the log file shows
 - Host side: interrupts reach the guest (MSI-X vector 0), and there are no AMD-Vi/IOMMU faults. The interrupt count freezes once the device dies.
 - Next: `TdrDelay=60`/`TdrDdiDelay=60` set in the guest, to tell a slow engine apart from a hung one.
 - Touchpad (I2C HID, absolute multitouch) does not work over evdev into virtio mouse/keyboard. Keyboard and TrackPoint work.
+
+**Test B, third attempt (TdrDelay=60): GPU survives, panel black with backlight on.**
+- The first 80 s show about 31,000 MSI-X interrupts/s from the GPU (an error/retry storm, not normal work). One `0x141` engine timeout at +82 s is recovered (an engine-level reset, no PCI reset needed). After that it settles at about 60 interrupts/s (vblank), with status OK at 1920×1080@60.
+- Windows renders the lock screen to the internal panel (`LogonUI`/`dwm` running, panel active, brightness 75) but the panel shows black with the backlight on. Suspected cause: Panel Self-Refresh. The driver's own key `…\Class\{4d36e968…}\0001` has `DalPSRFeatureEnable=1`; it is now set to 0.
+
+**Test C, restart inside Windows: FAIL.** The VM hangs in OVMF during POST (one vCPU spinning at `0x7b1…`, the rest halted), and Windows never starts. With no GPU reset between guest boots, the firmware meets a dirty GPU. Prime suspect: the AMD GOP option ROM, which also never lit the panel. Next run: no GOP ROM.
